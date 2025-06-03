@@ -24,13 +24,21 @@ using v8::Value;
 
 Persistent<Function> Statement::constructor;
 
-Statement::Statement(sqlite3_stmt* stmt, Database* db) : stmt_(stmt), db_(db) {
+Statement::Statement(sqlite3_stmt* stmt, Database* db) : stmt_(stmt), db_(db), columnNamesCached_(false) {
 }
 
 Statement::~Statement() {
     if (stmt_) {
         sqlite3_finalize(stmt_);
         stmt_ = nullptr;
+    }
+    
+    // Clean up persistent handles
+    for (auto* name : columnNames_) {
+        if (name) {
+            name->Reset();
+            delete name;
+        }
     }
 }
 
@@ -166,32 +174,20 @@ void Statement::Iterator(const FunctionCallbackInfo<Value>& args) {
 
 void Statement::Next(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
-    Local<Context> context = isolate->GetCurrentContext();
     
     Statement* stmt = Unwrap(args.Holder());
     if (!stmt || !stmt->IsValid()) {
-        Local<Object> result = Object::New(isolate);
-        result->Set(context, String::NewFromUtf8(isolate, "done", NewStringType::kNormal).ToLocalChecked(),
-                   Boolean::New(isolate, true)).Check();
-        args.GetReturnValue().Set(result);
+        args.GetReturnValue().Set(Undefined(isolate));
         return;
     }
 
     int rc = sqlite3_step(stmt->stmt_);
     
     if (rc == SQLITE_ROW) {
-        Local<Object> result = Object::New(isolate);
-        result->Set(context, String::NewFromUtf8(isolate, "value", NewStringType::kNormal).ToLocalChecked(),
-                   stmt->GetCurrentRow(isolate)).Check();
-        result->Set(context, String::NewFromUtf8(isolate, "done", NewStringType::kNormal).ToLocalChecked(),
-                   Boolean::New(isolate, false)).Check();
-        args.GetReturnValue().Set(result);
+        args.GetReturnValue().Set(stmt->GetCurrentRow(isolate));
     } else if (rc == SQLITE_DONE) {
         sqlite3_reset(stmt->stmt_);
-        Local<Object> result = Object::New(isolate);
-        result->Set(context, String::NewFromUtf8(isolate, "done", NewStringType::kNormal).ToLocalChecked(),
-                   Boolean::New(isolate, true)).Check();
-        args.GetReturnValue().Set(result);
+        args.GetReturnValue().Set(Undefined(isolate));
     } else {
         isolate->ThrowException(Exception::Error(
             String::NewFromUtf8(isolate, sqlite3_errmsg(sqlite3_db_handle(stmt->stmt_)), NewStringType::kNormal).ToLocalChecked()));
@@ -239,8 +235,9 @@ Local<Value> Statement::GetColumnValue(Isolate* isolate, int columnIndex) {
                 return extStr;
             } else {
                 // Fallback to regular string if external creation fails
-                delete extResource;
-                return String::NewFromTwoByte(isolate, utf16_data, v8::NewStringType::kNormal, length).ToLocalChecked();
+                throw new std::runtime_error("Failed to create external string");
+                // delete extResource;
+                // return String::NewFromTwoByte(isolate, utf16_data, v8::NewStringType::kNormal, length).ToLocalChecked();
             }
         }
         case SQLITE_BLOB: {
@@ -260,18 +257,33 @@ Local<Value> Statement::GetColumnValue(Isolate* isolate, int columnIndex) {
     }
 }
 
+void Statement::CacheColumnNames(Isolate* isolate) {
+    if (columnNamesCached_) return;
+    
+    int colCount = sqlite3_column_count(stmt_);
+    columnNames_.resize(colCount);
+    
+    for (int i = 0; i < colCount; i++) {
+        const char* colName = sqlite3_column_name(stmt_, i);
+        Local<String> name = String::NewFromUtf8(isolate, colName, NewStringType::kInternalized).ToLocalChecked();
+        columnNames_[i] = new Persistent<String>(isolate, name);
+    }
+    
+    columnNamesCached_ = true;
+}
+
 Local<Object> Statement::GetCurrentRow(Isolate* isolate) {
+    if (!columnNamesCached_) {
+        CacheColumnNames(isolate);
+    }
+    
     Local<Context> context = isolate->GetCurrentContext();
     Local<Object> row = Object::New(isolate);
     
     int colCount = sqlite3_column_count(stmt_);
     for (int i = 0; i < colCount; i++) {
-        const char* colName = sqlite3_column_name(stmt_, i);
         Local<Value> value = GetColumnValue(isolate, i);
-        
-        row->Set(context, 
-                String::NewFromUtf8(isolate, colName, NewStringType::kNormal).ToLocalChecked(),
-                value).Check();
+        row->Set(context, columnNames_[i]->Get(isolate), value).Check();
     }
     
     return row;

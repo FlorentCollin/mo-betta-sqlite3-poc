@@ -6,7 +6,8 @@ const stmt = db.prepare('SELECT id, name, email, description, score, active FROM
 let count = 0;
 let totalLength = 0;
 
-for (const row of stmt) {
+let row;
+while ((row = stmt.next()) !== undefined) {
     count++;
     // Access all string fields to ensure they're processed
     totalLength += row.name.length + row.email.length + row.description.length;

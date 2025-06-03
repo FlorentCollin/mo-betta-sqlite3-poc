@@ -3,6 +3,7 @@
 #include <v8.h>
 #include <node.h>
 #include <sqlite3.h>
+#include <vector>
 
 class Database;
 
@@ -31,8 +32,13 @@ private:
     sqlite3_stmt* stmt_;
     Database* db_;
     
+    // Cached column names for performance
+    std::vector<v8::Persistent<v8::String>*> columnNames_;
+    bool columnNamesCached_;
+    
     v8::Local<v8::Value> GetColumnValue(v8::Isolate* isolate, int columnIndex);
     v8::Local<v8::Object> GetCurrentRow(v8::Isolate* isolate);
+    void CacheColumnNames(v8::Isolate* isolate);
     
     static Statement* Unwrap(v8::Local<v8::Object> obj);
     void Wrap(v8::Local<v8::Object> obj);

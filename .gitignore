@@ -1,2 +1,4 @@
 node_modules/
 build/
+better-sqlite3
+benchmark.db
