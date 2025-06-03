@@ -1,0 +1,36 @@
+{
+  "name": "mo-betta-sqlite3",
+  "version": "0.1.0",
+  "description": "High-performance SQLite binding for Node.js with zero-copy string access",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "node-gyp rebuild",
+    "clean": "node-gyp clean",
+    "test": "node test.js"
+  },
+  "keywords": [
+    "sqlite",
+    "database",
+    "performance",
+    "zero-copy",
+    "native"
+  ],
+  "author": "",
+  "license": "MIT",
+  "gypfile": true,
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "node-gyp": "^10.0.0"
+  },
+  "os": [
+    "!win32"
+  ],
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "sqlite3": "^5.1.7"
+  }
+}
