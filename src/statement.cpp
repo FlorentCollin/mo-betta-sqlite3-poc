@@ -24,7 +24,7 @@ using v8::Value;
 
 Persistent<Function> Statement::constructor;
 
-Statement::Statement(sqlite3_stmt* stmt, Database* db) : stmt_(stmt), db_(db), columnNamesCached_(false) {
+Statement::Statement(sqlite3_stmt* stmt, Database* db) : stmt_(stmt), db_(db), columnNamesCached_(false), iteratorCached_(false) {
 }
 
 Statement::~Statement() {
@@ -40,6 +40,11 @@ Statement::~Statement() {
             delete name;
         }
     }
+    
+    // Clean up iterator cache
+    iteratorResult_.Reset();
+    valueProp_.Reset();
+    doneProp_.Reset();
 }
 
 void Statement::Init(Local<Object> exports) {
@@ -174,20 +179,44 @@ void Statement::Iterator(const FunctionCallbackInfo<Value>& args) {
 
 void Statement::Next(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
+    Local<Context> context = isolate->GetCurrentContext();
     
     Statement* stmt = Unwrap(args.Holder());
     if (!stmt || !stmt->IsValid()) {
-        args.GetReturnValue().Set(Undefined(isolate));
+        // Cache iterator result object and property names on first use
+        if (!stmt->iteratorCached_) {
+            stmt->iteratorResult_.Reset(isolate, Object::New(isolate));
+            stmt->valueProp_.Reset(isolate, String::NewFromUtf8(isolate, "value", NewStringType::kInternalized).ToLocalChecked());
+            stmt->doneProp_.Reset(isolate, String::NewFromUtf8(isolate, "done", NewStringType::kInternalized).ToLocalChecked());
+            stmt->iteratorCached_ = true;
+        }
+        
+        Local<Object> result = stmt->iteratorResult_.Get(isolate);
+        result->Set(context, stmt->doneProp_.Get(isolate), Boolean::New(isolate, true)).Check();
+        args.GetReturnValue().Set(result);
         return;
+    }
+
+    // Cache iterator result object and property names on first use
+    if (!stmt->iteratorCached_) {
+        stmt->iteratorResult_.Reset(isolate, Object::New(isolate));
+        stmt->valueProp_.Reset(isolate, String::NewFromUtf8(isolate, "value", NewStringType::kInternalized).ToLocalChecked());
+        stmt->doneProp_.Reset(isolate, String::NewFromUtf8(isolate, "done", NewStringType::kInternalized).ToLocalChecked());
+        stmt->iteratorCached_ = true;
     }
 
     int rc = sqlite3_step(stmt->stmt_);
     
+    Local<Object> result = stmt->iteratorResult_.Get(isolate);
+    
     if (rc == SQLITE_ROW) {
-        args.GetReturnValue().Set(stmt->GetCurrentRow(isolate));
+        result->Set(context, stmt->valueProp_.Get(isolate), stmt->GetCurrentRow(isolate)).Check();
+        result->Set(context, stmt->doneProp_.Get(isolate), Boolean::New(isolate, false)).Check();
+        args.GetReturnValue().Set(result);
     } else if (rc == SQLITE_DONE) {
         sqlite3_reset(stmt->stmt_);
-        args.GetReturnValue().Set(Undefined(isolate));
+        result->Set(context, stmt->doneProp_.Get(isolate), Boolean::New(isolate, true)).Check();
+        args.GetReturnValue().Set(result);
     } else {
         isolate->ThrowException(Exception::Error(
             String::NewFromUtf8(isolate, sqlite3_errmsg(sqlite3_db_handle(stmt->stmt_)), NewStringType::kNormal).ToLocalChecked()));
@@ -235,9 +264,8 @@ Local<Value> Statement::GetColumnValue(Isolate* isolate, int columnIndex) {
                 return extStr;
             } else {
                 // Fallback to regular string if external creation fails
-                throw new std::runtime_error("Failed to create external string");
-                // delete extResource;
-                // return String::NewFromTwoByte(isolate, utf16_data, v8::NewStringType::kNormal, length).ToLocalChecked();
+                delete extResource;
+                return String::NewFromTwoByte(isolate, utf16_data, v8::NewStringType::kNormal, length).ToLocalChecked();
             }
         }
         case SQLITE_BLOB: {

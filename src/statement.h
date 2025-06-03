@@ -36,6 +36,12 @@ private:
     std::vector<v8::Persistent<v8::String>*> columnNames_;
     bool columnNamesCached_;
     
+    // Cached iterator result object and property names
+    v8::Persistent<v8::Object> iteratorResult_;
+    v8::Persistent<v8::String> valueProp_;
+    v8::Persistent<v8::String> doneProp_;
+    bool iteratorCached_;
+    
     v8::Local<v8::Value> GetColumnValue(v8::Isolate* isolate, int columnIndex);
     v8::Local<v8::Object> GetCurrentRow(v8::Isolate* isolate);
     void CacheColumnNames(v8::Isolate* isolate);
