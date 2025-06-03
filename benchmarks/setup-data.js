@@ -9,6 +9,7 @@ if (fs.existsSync('benchmark.db')) {
 console.log('Setting up benchmark database with 50,000 rows...');
 
 const db = new Database('benchmark.db');
+db.pragma(`encoding = "UTF-16"`);
 
 // Create table
 db.exec(`CREATE TABLE users (
