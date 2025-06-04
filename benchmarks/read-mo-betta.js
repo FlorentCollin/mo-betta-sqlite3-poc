@@ -1,6 +1,7 @@
 const { Database } = require('../index.js');
 
 const db = new Database('benchmark.db');
+db.exec('PRAGMA encoding = "UTF-16"');
 const stmt = db.prepare('SELECT id, name, email, description, score, active FROM users');
 
 let count = 0;

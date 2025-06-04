@@ -10,6 +10,7 @@ console.log('Setting up benchmark database with 50,000 rows...');
 
 const db = new Database('benchmark.db');
 db.pragma(`encoding = "UTF-16"`);
+db.pragma(`journal_mode = WAL`);
 
 // Create table
 db.exec(`CREATE TABLE users (
@@ -36,7 +37,7 @@ for (let i = 0; i < 50000; i++) {
     users.push([
         `User${i}`,
         `user${i}@example.com`,
-        `This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`,
+        `This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. This is a longer description for user ${i} to test string performance with more substantial text content that will benefit from zero-copy access. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.  `,
         Math.random() * 100,
         i % 2
     ]);

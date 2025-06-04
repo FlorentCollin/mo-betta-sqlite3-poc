@@ -20,15 +20,7 @@
         "SQLITE_THREADSAFE=0",
         "SQLITE_ENABLE_COLUMN_METADATA",
         "SQLITE_OMIT_LOAD_EXTENSION",
-        "SQLITE_ENABLE_JSON1",
-        "SQLITE_DEFAULT_MEMSTATUS=0",
-        "SQLITE_DEFAULT_WAL_SYNCHRONOUS=1",
-        "SQLITE_LIKE_DOESNT_MATCH_BLOBS",
-        "SQLITE_MAX_EXPR_DEPTH=0",
-        "SQLITE_OMIT_DEPRECATED",
-        "SQLITE_OMIT_PROGRESS_CALLBACK",
-        "SQLITE_OMIT_SHARED_CACHE",
-        "SQLITE_USE_ALLOCA"
+        "SQLITE_ENABLE_JSON1"
       ],
       "conditions": [
         ["OS=='win'", {
@@ -44,7 +36,11 @@
             "GCC_ENABLE_CPP_EXCEPTIONS": "YES",
             "CLANG_CXX_LIBRARY": "libc++",
             "MACOSX_DEPLOYMENT_TARGET": "10.15",
-            "OTHER_CPLUSPLUSFLAGS": ["-std=c++20", "-stdlib=libc++"]
+            "OTHER_CPLUSPLUSFLAGS": ["-std=c++20", "-stdlib=libc++"],
+            "GCC_OPTIMIZATION_LEVEL": "3",
+            "GCC_GENERATE_DEBUGGING_SYMBOLS": "NO",
+            "DEAD_CODE_STRIPPING": "YES",
+            "GCC_INLINES_ARE_PRIVATE_EXTERN": "YES",
           }
         }],
         ["OS=='linux'", {
