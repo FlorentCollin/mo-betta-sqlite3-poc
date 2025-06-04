@@ -279,27 +279,14 @@ inline v8::Local<v8::Value> SqliteColumnToJS(v8::Isolate *isolate, sqlite3_stmt 
         return Number::New(isolate, sqlite3_column_double(stmt, index));
     case SQLITE_TEXT:
     {
-        const void *text = sqlite3_column_text16(stmt, index);
-        int bytes = sqlite3_column_bytes16(stmt, index);
+        const char *text = reinterpret_cast<const char *>(sqlite3_column_text(stmt, index));
+        int bytes = sqlite3_column_bytes(stmt, index);
         if (!text || bytes == 0)
         {
             return String::Empty(isolate);
         }
 
-        const uint16_t *utf16_data = static_cast<const uint16_t *>(text);
-        size_t length = bytes / 2;
-        auto extResource = new SQLiteExternalString(utf16_data, length);
-
-        Local<String> extStr;
-        if (String::NewExternalTwoByte(isolate, extResource).ToLocal(&extStr))
-        {
-            return extStr;
-        }
-        else
-        {
-            delete extResource;
-            return String::NewFromTwoByte(isolate, utf16_data, NewStringType::kNormal, length).ToLocalChecked();
-        }
+        return String::NewFromUtf8(isolate, text, NewStringType::kNormal, bytes).ToLocalChecked();
     }
     case SQLITE_BLOB:
     {
