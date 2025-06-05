@@ -1,12 +1,17 @@
 # mo-betta-sqlite3
 PoC based on https://x.com/aboodman/status/1929621162679730291
 
-# Install
+## Install
 ```
 bun install
 ```
 
-# Benchmarks
+## Rebuild the C++ bindings
+```
+bun run build
+```
+
+## Benchmarks
 ```
 node benchmarks/setup-data.js && hyperfine --warmup 7 \
         'node benchmarks/read-mo-betta.js benchmark-utf16.db' \

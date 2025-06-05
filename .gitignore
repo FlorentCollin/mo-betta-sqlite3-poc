@@ -2,3 +2,5 @@ node_modules/
 build/
 better-sqlite3
 benchmark.db
+benchmark-utf16.db
+benchmark-utf8.db
