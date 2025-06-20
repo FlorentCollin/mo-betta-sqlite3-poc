@@ -35,9 +35,21 @@ Database::Database(const char* filename) : db_(nullptr) {
         throw std::runtime_error(error);
     }
 
-    // Set pragma to use UTF-16 encoding for text
-    rc = sqlite3_exec(db_, "PRAGMA encoding = 'UTF-16'", nullptr, nullptr, nullptr);
+    // Set pragma to use UTF-16 encoding for text using UTF-16 API
+    const char16_t* pragmaSql = u"PRAGMA encoding = 'UTF-16'";
+    sqlite3_stmt* stmt;
+    rc = sqlite3_prepare16_v2(db_, pragmaSql, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
+        std::string error = "Cannot prepare UTF-16 encoding pragma: ";
+        error += sqlite3_errmsg(db_);
+        sqlite3_close(db_);
+        db_ = nullptr;
+        throw std::runtime_error(error);
+    }
+    
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) {
         std::string error = "Cannot set UTF-16 encoding: ";
         error += sqlite3_errmsg(db_);
         sqlite3_close(db_);
@@ -117,10 +129,12 @@ void Database::Prepare(const FunctionCallbackInfo<Value>& args) {
         return;
     }
 
-    String::Utf8Value sql(isolate, args[0]);
+    // Get UTF-16 string from V8 for consistent UTF-16 pipeline
+    String::Value sql(isolate, args[0]);
+    const uint16_t* sqlStr = reinterpret_cast<const uint16_t*>(*sql);
     
     sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v3(db->db_, *sql, -1, 0, &stmt, nullptr);
+    int rc = sqlite3_prepare16_v2(db->db_, sqlStr, -1, &stmt, nullptr);
     
     if (rc != SQLITE_OK) {
         isolate->ThrowException(Exception::Error(
@@ -147,16 +161,26 @@ void Database::Exec(const FunctionCallbackInfo<Value>& args) {
         return;
     }
 
-    String::Utf8Value sql(isolate, args[0]);
+    // Get UTF-16 string from V8
+    String::Value sql(isolate, args[0]);
+    const uint16_t* sqlStr = reinterpret_cast<const uint16_t*>(*sql);
     
-    char* errMsg = nullptr;
-    int rc = sqlite3_exec(db->db_, *sql, nullptr, nullptr, &errMsg);
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare16_v2(db->db_, sqlStr, -1, &stmt, nullptr);
     
     if (rc != SQLITE_OK) {
-        std::string error = errMsg ? errMsg : "Unknown error";
-        if (errMsg) sqlite3_free(errMsg);
         isolate->ThrowException(Exception::Error(
-            String::NewFromUtf8(isolate, error.c_str(), NewStringType::kNormal).ToLocalChecked()));
+            String::NewFromUtf8(isolate, sqlite3_errmsg(db->db_), NewStringType::kNormal).ToLocalChecked()));
+        return;
+    }
+    
+    // Execute the statement
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    
+    if (rc != SQLITE_DONE && rc != SQLITE_ROW) {
+        isolate->ThrowException(Exception::Error(
+            String::NewFromUtf8(isolate, sqlite3_errmsg(db->db_), NewStringType::kNormal).ToLocalChecked()));
         return;
     }
 }
